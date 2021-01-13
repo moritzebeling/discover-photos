@@ -2,8 +2,9 @@
 
     import p5 from 'p5';
 
-    let capture;
+    let id;
 
+    let capture;
     let grid = {
         columns: 3,
         rows: 3,
@@ -20,8 +21,8 @@
             // capture.hide();
             capture.size( grid.columns, grid.rows );
 
-            grid.w = sketch.width / grid.columns;
-            grid.h = sketch.height / grid.rows;
+            grid.w = ( sketch.width / grid.columns ) + 1;
+            grid.h = ( sketch.height / grid.rows ) + 1;
 
             sketch.fill( 255, 0, 0 );
             sketch.noStroke();
@@ -29,17 +30,23 @@
         };
         sketch.draw = () => {
 
+            let pixels = [];
+
             for ( let y = 0; y < grid.rows; y++ ) {
                 for ( let x = 0; x < grid.columns; x++ ) {
 
                     let p = capture.get( x, y );
                     let c = Math.round( ( (p[0] + p[1] + p[2]) / 765 ) * 1.2 );
 
+                    pixels.push( c );
+
                     sketch.fill( c * 255 );
                     sketch.rect( grid.w * x, grid.h * y, grid.w + 1, grid.h + 1 );
 
                 }
             }
+
+            id = pixels;
 
         };
     };
@@ -66,6 +73,7 @@
     :global( video ){
         opacity: 0;
         display: absolute;
+        top: 0;
     }
 
 </style>
