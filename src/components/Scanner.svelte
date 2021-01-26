@@ -1,79 +1,104 @@
 <script>
 
-    import p5 from 'p5';
+    let video, canvas, context;
 
-    let id;
-
-    let capture;
-    let grid = {
-        columns: 3,
-        rows: 3,
-        w: 0,
-        h: 0
-    };
-
-    const s = ( sketch ) => {
-        sketch.setup = () => {
-            sketch.createCanvas(container.offsetWidth, container.offsetHeight);
-            sketch.frameRate( 3 );
-
-            capture = sketch.createCapture(sketch.VIDEO);
-            // capture.hide();
-            capture.size( grid.columns, grid.rows );
-
-            grid.w = ( sketch.width / grid.columns ) + 1;
-            grid.h = ( sketch.height / grid.rows ) + 1;
-
-            sketch.fill( 255, 0, 0 );
-            sketch.noStroke();
-
-        };
-        sketch.draw = () => {
-
-            let pixels = [];
-
-            for ( let y = 0; y < grid.rows; y++ ) {
-                for ( let x = 0; x < grid.columns; x++ ) {
-
-                    let p = capture.get( x, y );
-                    let c = Math.round( ( (p[0] + p[1] + p[2]) / 765 ) * 1.2 );
-
-                    pixels.push( c );
-
-                    sketch.fill( c * 255 );
-                    sketch.rect( grid.w * x, grid.h * y, grid.w + 1, grid.h + 1 );
-
-                }
-            }
-
-            id = pixels;
-
-        };
-    };
-
-    let container;
-    let myp5;
+    let width = 64;
+    let height = 64;
+    let resolution = 10;
+    let frameRate = 10;
 
     import { onMount } from 'svelte';
     onMount(()=>{
-        myp5 = new p5(s, container);
+
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                width:     width,
+                height:    height,
+                frameRate: frameRate
+            }
+        }).then(function(stream) {
+            video.srcObject = stream;
+            video.onloadedmetadata = function(e) {
+                video.play();
+            };
+        }).catch(function(err) {
+            // deal with an error (such as no webcam)
+        });
+
+        canvas.width = width * resolution;
+        canvas.height = height * resolution;
+
+        context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        context.mozImageSmoothingEnabled = false;
+        context.imageSmoothingEnabled = false;
+
+        // video 'play' event listener
+        video.addEventListener('play', function() {
+            tick();
+        }, false);
+
     });
+
+    function tick() {
+        pixel();
+        pixel2();
+        setTimeout(tick, Math.round(1000/frameRate));
+    }
+
+    let threshold = ( 255 * 3 ) * 0.5;
+
+    function pixel() {
+
+        let w = canvas.width / resolution;
+        let h = canvas.height / resolution;
+        context.drawImage(video, 0, 0, w, h);
+
+        let image = context.getImageData(0, 0, w, h);
+        let data = image.data;
+
+        for( let i = 0; i < data.length; i = i+4 ){
+            let brightness = data[i] + data[i+1] + data[i+2];
+            data[i] = data[i+1] = data[i+2] = brightness < threshold ? 0 : 255;
+        }
+
+        image.data.set(data);
+        context.putImageData(image, 0, 0);
+        context.drawImage(canvas, 0, 0, w, h, 0, 0, width * resolution, height * resolution);
+    }
+
+    let code = '';
+
+    function pixel2() {
+
+        code = [];
+
+        let w = 2;
+        let h = 2;
+        context.drawImage(video, 0, 0, w, h);
+
+        let image = context.getImageData(0, 0, w, h);
+        let data = image.data;
+
+        for( let i = 0; i < data.length; i = i+4 ){
+            code.push( ( data[i] + data[i+1] + data[i+2] ) < threshold ? 1 : 0 );
+        }
+
+        code = parseInt( code.join(''), 2);
+    }
 
 </script>
 
-<div bind:this={container}></div>
+{code}
+
+<video bind:this={video} autoplay></video>
+<canvas bind:this={canvas}></canvas>
 
 <style lang="scss">
 
-    div {
-        width: 100%;
-        height: 100%;
-    }
-
-    :global( video ){
-        opacity: 0;
-        display: absolute;
-        top: 0;
+    video, canvas {
+        border: 1px solid #333;
+        margin: 1rem;
     }
 
 </style>
